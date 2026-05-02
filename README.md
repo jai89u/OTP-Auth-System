@@ -90,7 +90,7 @@ Email templates improvement
 Rate limiting
 👨‍💻 Author
 
-Jai sahu
+Jai sahu❤️
 
 ⭐ Support
 
