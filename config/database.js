@@ -8,6 +8,7 @@ const dbConnect = async()=>{
    .catch((err)=>{
     console.log("Error While Connecting To Database");
     console.log(err)
+    process.exit(1);
    })
 
 }

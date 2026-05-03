@@ -3,19 +3,14 @@ const jwt = require('jsonwebtoken');
 
 const User = require('../models/User');
 const mailSender = require("../utils/mailSender");
-// const e = require('express');
 
 // signup 
 
 exports.signup = async(req,res)=>{
     try{
         
-        // fetch data
         const{name,email,password,role} = req.body;
     
-
-        // check  userExisting
-        
         const userExisting = await User.findOne({email});
         if(userExisting){
             return res.status(400).json({
@@ -24,32 +19,39 @@ exports.signup = async(req,res)=>{
             });
         }
 
-        // hash password 
-
         const hashPassword = await bcrypt.hash(password,10);
 
         // Generate OTP
         const otp = Math.floor(100000+Math.random()*900000);
 
-        // create User
+        // create User (added otpExpires)
         const user = await User.create({
             name,
             email,
             password:hashPassword,
             role,
-            otp
+            otp,
+            otpExpires: Date.now() + 5 * 60 * 1000 // 5 min expiry
         })
 
-        // send OTP mail
-
+        // send OTP mail (updated HTML)
         await mailSender(
             email,
             "OTP Verification",
 
-            `<h1> Your OTP is ${otp} </h1>`,
+            `
+            <div style="font-family: Arial; padding:20px;">
+                <h2>OTP Verification</h2>
+                <p>Hello ${name || "User"},</p>
+                <p>Your OTP is:</p>
+                <h1 style="color:green; letter-spacing:5px;">${otp}</h1>
+                <p>This OTP is valid for 5 minutes.</p>
+                <p style="color:red; font-weight:bold;">
+                  ⚠️ Do not share your OTP with anyone.
+                </p>
+            </div>
+            `,
         )
-
-        // response
 
         return res.status(200).json({
             success:true,
@@ -63,7 +65,6 @@ exports.signup = async(req,res)=>{
             success:false,
             message:"Signup failed"
         })
-
     }
 }
 
@@ -79,19 +80,28 @@ exports.verifyOtp = async(req,res)=>{
         if(!user){
             return res.status(400).json({
                 success:false,
-                message:"User not founf"
+                message:"User not found"
             });
         }
 
-        if(user.otp!=otp){
+        if(user.otp != otp){
             return res.status(400).json({
                 success:false,
                 message:"Invalid Otp"
             })
         }
 
+        // check expiry
+        if(user.otpExpires < Date.now()){
+            return res.status(400).json({
+                success:false,
+                message:"OTP expired"
+            })
+        }
+
         user.isVerified = true;
         user.otp = null;
+        user.otpExpires = null;
 
         await user.save();
 
@@ -105,7 +115,6 @@ exports.verifyOtp = async(req,res)=>{
             success:false,
             message:"OTP verification failed",
         })
-
     }
 }
 
@@ -117,7 +126,6 @@ exports.login = async(req,res)=>{
 
         const{email,password} = req.body;
 
-        // check user
         const user = await User.findOne({email});
 
         if(!user){
@@ -134,8 +142,6 @@ exports.login = async(req,res)=>{
             })
         }
 
-        // comapre Password
-
         const isMatch = await bcrypt.compare(password,user.password);
 
         if(!isMatch){
@@ -145,18 +151,11 @@ exports.login = async(req,res)=>{
             })
         }
 
-        console.log("Entered Password:", password);
-        console.log("DB Password:", user.password);
-
-        // const payload
-
         const payload = {
             email:user.email,
             id:user.id,
             role:user.role,
         }
-
-        // Jwt token
 
         const token = jwt.sign(payload,process.env.JWT_SECRET,{
             expiresIn:"2h"
@@ -177,4 +176,3 @@ exports.login = async(req,res)=>{
         })
     }
 }
-
