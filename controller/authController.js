@@ -91,7 +91,7 @@ exports.verifyOtp = async(req,res)=>{
             })
         }
 
-        // check expiry
+        // check otp expiry
         if(user.otpExpires < Date.now()){
             return res.status(400).json({
                 success:false,
